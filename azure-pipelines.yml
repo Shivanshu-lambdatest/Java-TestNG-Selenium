@@ -1,0 +1,41 @@
+variables:
+- name: BuildParameters.mavenPOMFile
+  value: pom.xml
+name: $(date:yyyyMMdd)$(rev:.r)
+resources:
+  repositories:
+  - repository: self
+    type: git
+    ref: master
+jobs:
+- job: Job_1
+  displayName: Agent job 1
+  pool:
+    vmImage: ubuntu-20.04
+  steps:
+  - checkout: self
+    clean: true
+  - task: configuration@1
+    displayName: LambdaTest configuration setup
+    inputs:
+      connection: 3b70f465-07e5-4408-b1b9-2d721a358b63
+  - task: CopyFiles@2
+    displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
+    condition: succeededOrFailed()
+    inputs:
+      SourceFolder: $(system.defaultworkingdirectory)
+      Contents: '**/*.jar'
+      TargetFolder: $(build.artifactstagingdirectory)
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Artifact: drop'
+    condition: succeededOrFailed()
+    inputs:
+      PathtoPublish: $(build.artifactstagingdirectory)
+  - task: Maven@3
+    displayName: Maven pom.xml
+    continueOnError: True
+    inputs:
+      mavenPOMFile: $(BuildParameters.mavenPOMFile)
+      goals: test -D suite=parallel.xml
+  - task: LambdatestResults@1
+    displayName: Lambdatest Results
